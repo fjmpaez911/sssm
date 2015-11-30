@@ -15,7 +15,7 @@ import java.util.Locale;
  */
 public class DataUtils {
 
-    public static final String TIMESTAMP_FORMAT = "yyyyMMdd-HH:mm:ss";
+    public static final String TIMESTAMP_FORMAT = "yyyyMMdd-HH:mm:ss.SSS";
     public static final String EMPTY_STRING = "";
 
     /**
