@@ -87,6 +87,7 @@ public class Main {
             }
             else {
                 System.out.println(stocks[rdnStock] + " " + sides[rdnSide] + " " + df.format(rdnPrice) + " " + rdnQuantity + " " + DataUtils.getSysdate(DataUtils.TIMESTAMP_FORMAT));
+                waitToRecord (DELAY_TO_RECORD);
             }
         }
     }
