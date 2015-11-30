@@ -47,6 +47,25 @@ public class Trade implements Serializable{
         this.sendingTime = new Date();
     }
     
+    /**
+     * Constructor
+     * 
+     * @param id
+     * @param stock
+     * @param side
+     * @param price
+     * @param quantityShares 
+     * @param sendingTime 
+     */
+    public Trade (int id, Catalog.Stock stock, Catalog.SideEnum side, Double price, int quantityShares, Date sendingTime) {
+        
+        this.id = id;
+        this.stock = stock;
+        this.side = side;
+        this.price = price;
+        this.quantityShares = quantityShares;
+        this.sendingTime = sendingTime;
+    }
     
     /**
      * @return the id

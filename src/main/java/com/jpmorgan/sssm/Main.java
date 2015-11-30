@@ -8,8 +8,12 @@ import com.jpmorgan.sssm.exception.EnumNotFoundException;
 import com.jpmorgan.sssm.model.Trade;
 import com.jpmorgan.sssm.utils.DataUtils;
 import com.jpmorgan.sssm.utils.EnumUtils;
+import java.text.DateFormat;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Scanner;
 import java.util.TreeSet;
 import java.util.logging.Level;
@@ -22,24 +26,31 @@ import java.util.logging.Logger;
 public class Main {
     
     private static final int DELAY_TO_RECORD = 100;
+    private static final long ONE_MINUTE_IN_MILLIS = 60000;
     
-    private static DecimalFormat df = new DecimalFormat("#.##"); 
+    private static DecimalFormat df = new DecimalFormat("#.##");
     private static Pricer pricer = new PricerImpl();
     private static Scanner scan = new Scanner (System.in);
+    private static boolean timeAuto = false;
     
     private static void checkParameters(String[] args) {
         
-        if (args.length == 2 && "generate".equals(args[0])) {
+        if (args.length >= 2 && "generate".equals(args[0])) {
 
             int nTrades = Integer.parseInt(args[1]);
-
-            generateTestFile (nTrades);
+            
+            boolean withoutTime = (args.length == 3 && "auto".equals(args[2]));
+                    
+            generateTestFile (nTrades, withoutTime);
             
             System.exit (0);
         }
+        else if (args.length > 0 && "auto".equals(args[0])) {
+            timeAuto = true;
+        }
     }
     
-    private static void generateTestFile(int nTrades) {
+    private static void generateTestFile(int nTrades, boolean withoutTime) {
         
         try {
 
@@ -52,13 +63,13 @@ public class Main {
 
             System.out.println(15);
                 
-            generateTrades(nTrades);
+            generateTrades(nTrades, withoutTime);
         }
         catch (InterruptedException | NumberFormatException ex) {
         }
     }
     
-    private static void generateTrades(int nTrades) throws InterruptedException {
+    private static void generateTrades(int nTrades, boolean withoutTime) throws InterruptedException {
         
         System.out.println(nTrades);
         
@@ -71,11 +82,16 @@ public class Main {
             Double rdnPrice = Math.random() * 1000;
             Integer rdnQuantity = Integer.parseInt(Long.toString(Math.round(Math.random() * 1000)), 10);
 
-            System.out.println(stocks[rdnStock] + " " + sides[rdnSide] + " " + df.format(rdnPrice) + " " + rdnQuantity);
+            if (withoutTime) {
+                System.out.println(stocks[rdnStock] + " " + sides[rdnSide] + " " + df.format(rdnPrice) + " " + rdnQuantity);
+            }
+            else {
+                System.out.println(stocks[rdnStock] + " " + sides[rdnSide] + " " + df.format(rdnPrice) + " " + rdnQuantity + " " + DataUtils.getSysdate(DataUtils.TIMESTAMP_FORMAT));
+            }
         }
     }
     
-    private static String scanInput() {
+    private static String scanInputString() {
         
         String str = DataUtils.EMPTY_STRING;
         
@@ -91,16 +107,35 @@ public class Main {
     
     private static Integer scanInputInteger() {
         
-        Integer n = 0;
+        Integer n = null;
         
         try {
             n = scan.nextInt();
+            if (n <= 0) {
+                n = null;
+            }
         } 
         catch (Exception e) {
             Logger.getLogger(Main.class.getName()).info("Ocurred an error scaning the input");
         }
         
         return n;
+    }
+    
+    private static Date scanInputDate() {
+        
+        DateFormat format = new SimpleDateFormat(DataUtils.TIMESTAMP_FORMAT, Locale.ENGLISH);
+        Date date = null;
+        
+        try {
+            String str = scan.next();
+            date = format.parse(str);
+        } 
+        catch (Exception e) {
+            Logger.getLogger(Main.class.getName()).info("Ocurred an error scaning a date");
+        }
+        
+        return date;
     }
     
     private static Catalog.Stock inputStock() {
@@ -116,7 +151,7 @@ public class Main {
             }
 
             System.out.print("Enter a stock: ");
-            String str = scanInput();
+            String str = scanInputString();
 
             try {
                 stockSelected = EnumUtils.lookupEnumByConstantName(Catalog.Stock.class, str);
@@ -136,7 +171,7 @@ public class Main {
         do {
             correctPrice = true;
             System.out.print("Enter a price: ");
-            String str = scanInput();
+            String str = scanInputString();
             str = str.replaceAll(",", ".");
 
             try {
@@ -155,7 +190,8 @@ public class Main {
     private static int inputTimePeriod() {
         
         System.out.print("Enter a period time in minutes to calculate Volume Weighted Stock Price based on trades in past (X) minutes: ");
-        return scanInputInteger();
+        Integer time = scanInputInteger();
+        return time == null ? 0 : time;
     }
     
     private static void inputTrade(int id) {
@@ -164,23 +200,54 @@ public class Main {
         
         try {
             
-            str = scanInput();
-            Catalog.Stock stockOfTrade = EnumUtils.lookupEnumByConstantName(Catalog.Stock.class, str);
+            Catalog.Stock stockOfTrade = null;
+            str = scanInputString();
+            if (DataUtils.EMPTY_STRING.equals(str)) {
+                throw new NullPointerException("Error catching stock of trade.");
+            }
+            else {
+                stockOfTrade = EnumUtils.lookupEnumByConstantName(Catalog.Stock.class, str);
+            }
 
-            str = scanInput();
-            Catalog.SideEnum sideOfTrade = EnumUtils.lookupEnumByConstantName(Catalog.SideEnum.class, str);
+            Catalog.SideEnum sideOfTrade = null;
+            str = scanInputString();
+            if (DataUtils.EMPTY_STRING.equals(str)) {
+                throw new NullPointerException("Error catching side of trade.");
+            }
+            else {
+                sideOfTrade = EnumUtils.lookupEnumByConstantName(Catalog.SideEnum.class, str);
+            }
 
-            str = scanInput();
+            str = scanInputString();
             str = DataUtils.isNumeric(str) ? str.replaceAll(",", ".") : null;
             Double priceOfTrade = Double.parseDouble(str);
 
-            int quantityOfTrade = scanInputInteger();
+            Integer quantityOfTrade = scanInputInteger();
+            quantityOfTrade = quantityOfTrade == null ? 0 : quantityOfTrade;
 
-            Trade trade = new Trade(id, stockOfTrade, sideOfTrade, priceOfTrade, quantityOfTrade);
+            if (quantityOfTrade == 0) {
+                throw new NullPointerException("The quantity of trade must be greater than zero");
+            }
+            
+            Trade trade;
+            if (timeAuto) {
+                trade = new Trade(id, stockOfTrade, sideOfTrade, priceOfTrade, quantityOfTrade);
+            }
+            else {
+                Date date = scanInputDate();
+                
+                if (date == null) {
+                    throw new NullPointerException("Error catching date of trade.");
+                }
+                
+                trade = new Trade(id, stockOfTrade, sideOfTrade, priceOfTrade, quantityOfTrade, date);
+            }
+
+            
             pricer.saveTrade(trade);
         } 
         catch (EnumNotFoundException | NumberFormatException | NullPointerException ex) {
-            Logger.getLogger(Main.class.getName()).info("The trade is not in a correct format. Discard this trade.");
+            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, "The trade is not in a correct format. Discard this trade.", ex);
         }
     }
     
@@ -188,18 +255,24 @@ public class Main {
         
         System.out.println("You must type a number of trades to record: ");
         
-        int numberOfTrades = scanInputInteger();
+        Integer numberOfTrades = scanInputInteger();
+        numberOfTrades = numberOfTrades == null ? 0 : numberOfTrades;
 
-        System.out.println("Enter the trade's detail in this format (STOCK SIDE PRICE QUANTITY) ");
-        System.out.println("ex: POP SELL 120,4 100 ");
+        if (numberOfTrades > 0) {
 
-        int cont = 0;
+            System.out.println("Enter the trade's detail in this format (STOCK SIDE PRICE QUANTITY) ");
+            System.out.println("ex: POP SELL 120,4 100 ");
 
-        while (numberOfTrades > cont) {
+            int cont = 0;
 
-            inputTrade (cont++);
+            while (numberOfTrades > cont) {
 
-            waitToRecord (DELAY_TO_RECORD);   
+                inputTrade (cont++);
+
+                if (timeAuto) {
+                    waitToRecord (DELAY_TO_RECORD);   
+                }
+            }
         }
     }
 
@@ -228,7 +301,7 @@ public class Main {
         if (!pricer.getTrades().isEmpty()) {
 
             try {
-                Long periodInMilis = new Long(period * 60 * 1000);
+                Long periodInMilis = new Long(period * ONE_MINUTE_IN_MILLIS);
                 System.out.println("Volume Weighted Stock Price: " + df.format(pricer.calculateVWSP(periodInMilis)));
             }
             catch (Exception e) {

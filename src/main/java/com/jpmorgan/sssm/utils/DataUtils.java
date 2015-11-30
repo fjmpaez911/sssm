@@ -5,6 +5,7 @@ package com.jpmorgan.sssm.utils;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 
 /**
@@ -21,13 +22,12 @@ public class DataUtils {
      * Get System date
      *
      * @param format date format
-     * @return date
+     * @return a string that represent the date in a determinate format 
      */
-    public static Date getSysdate(String format) {
+    public static String getSysdate(String format) {
         Date sysdate = new Date();
-        DateFormat dateFormat = new SimpleDateFormat(format, java.util.Locale.ENGLISH);
-        dateFormat.format(sysdate);
-        return sysdate;
+        DateFormat dateFormat = new SimpleDateFormat(format, Locale.ENGLISH);
+        return dateFormat.format(sysdate);
     }
 
     /**
